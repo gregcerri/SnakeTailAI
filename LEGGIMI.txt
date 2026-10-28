@@ -1,0 +1,37 @@
+﻿SnakeTail AI - visualizzatore di log
+====================================
+
+INSTALLAZIONE
+Copia questa cartella dove vuoi (per esempio C:\Tools\SnakeTailAI) e avvia SnakeTailAI.exe.
+Non serve installare nulla: .NET e' gia' incluso nell'exe.
+Requisiti: Windows 10 o 11 a 64 bit.
+
+PRIMO AVVIO
+- Windows potrebbe mostrare "Windows ha protetto il PC" (l'exe non e' firmato):
+  clic su "Ulteriori informazioni" e poi "Esegui comunque".
+- Se l'antivirus lo blocca, aggiungi un'esclusione per questa cartella.
+- La cartella dei log dei PC e' C:\SPECIAL_DEVICES\ViuLog.
+  Se sul PC e' un'altra, cambiala in Impostazioni (icona ingranaggio) -> Devices folder.
+
+COLLEGAMENTO
+Tasto destro su SnakeTailAI.exe -> "Mostra altre opzioni" -> "Invia a" -> "Desktop (crea collegamento)",
+oppure, con l'app aperta, tasto destro sull'icona nella barra delle applicazioni -> "Aggiungi alla barra delle applicazioni".
+
+TERMINALE SSH
+Il pulsante SSH apre un terminale sul ViuPC del log, integrato in fondo alla finestra
+(Ctrl+Shift+T per mostrarlo o nasconderlo). Utente, porta e password si impostano in
+Impostazioni -> SSH. La password e' salvata cifrata per l'utente Windows: su un altro PC va reinserita.
+
+IMPOSTAZIONI
+Ogni utente ha le sue impostazioni (tab aperti, filtri, avvisi, tema) in:
+  %AppData%\SnakeTailAI\settings.json
+Per portarle su un altro PC copia quel file nella stessa posizione.
+
+AGGIORNARE
+Chiudi SnakeTail AI e sostituisci SnakeTailAI.exe con la versione nuova. Le impostazioni restano.
+
+DISINSTALLARE
+Cancella la cartella. Se vuoi, cancella anche %AppData%\SnakeTailAI.
+
+Scorciatoie principali: Ctrl+F cerca, Ctrl+G vai a orario, Ctrl+L pulisci schermo,
+F5 ricarica, F11 modalita' focus, Ctrl+Shift+G gruppi di messaggi.

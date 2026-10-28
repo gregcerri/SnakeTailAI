@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <!-- Only for the tray icon that shows alert notifications. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <AssemblyName>SnakeTailAI</AssemblyName>
+    <Product>SnakeTail AI</Product>
+    <Version>1.0.0</Version>
+    <Description>Live log viewer with filters, highlights and rotation support</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SnakeTailAI.Core\SnakeTailAI.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="EasyWindowsTerminalControl" Version="1.0.38" />
+    <PackageReference Include="WPF-UI" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WinForms is used only through explicit names; keep its namespaces out of the global usings (they clash with WPF). -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.png" />
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
+
+</Project>

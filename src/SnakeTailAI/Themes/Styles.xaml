@@ -1,0 +1,239 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:local="clr-namespace:SnakeTailAI">
+
+    <!-- Level brushes; ThemeService replaces them when the theme changes. -->
+    <SolidColorBrush x:Key="Log.Background" Color="#1E1F22" />
+    <SolidColorBrush x:Key="Log.Debug" Color="#8A8F98" />
+    <SolidColorBrush x:Key="Log.Info" Color="#4FC1FF" />
+    <SolidColorBrush x:Key="Log.Warning" Color="#FFB454" />
+    <SolidColorBrush x:Key="Log.Error" Color="#FF5C5C" />
+    <SolidColorBrush x:Key="Log.Other" Color="#7D8590" />
+    <SolidColorBrush x:Key="Log.Bookmark" Color="#A78BFA" />
+    <SolidColorBrush x:Key="Log.Live" Color="#4ADE80" />
+    <SolidColorBrush x:Key="Log.Accent" Color="#4CC2FF" />
+
+    <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas</FontFamily>
+
+    <local:BoolToVisibilityConverter x:Key="BoolToVis" />
+    <local:NullToVisibilityConverter x:Key="NullToVis" />
+    <local:CountToVisibilityConverter x:Key="CountToVis" />
+    <local:InverseBoolConverter x:Key="InverseBool" />
+    <local:SizeConverter x:Key="SizeText" />
+    <local:LevelNameConverter x:Key="LevelName" />
+    <local:LevelBrushConverter x:Key="LevelBrush" />
+    <local:TimestampConverter x:Key="TimestampText" />
+    <local:FileNameConverter x:Key="FileName" />
+    <local:AllTrueToVisibilityConverter x:Key="AllTrueToVis" />
+
+    <!-- Pill toggle for log levels; Tag carries the level brush. -->
+    <Style x:Key="LevelChip" TargetType="ToggleButton">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Margin" Value="0,0,6,0" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Grid x:Name="Root" Background="Transparent">
+                        <Border x:Name="Tint" CornerRadius="13" Background="{TemplateBinding Tag}" Opacity="0.16" />
+                        <Border x:Name="Frame" CornerRadius="13" BorderThickness="1" BorderBrush="{TemplateBinding Tag}" Padding="9,4,11,4">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse x:Name="Dot" Width="8" Height="8" Fill="{TemplateBinding Tag}" VerticalAlignment="Center" Margin="0,0,7,0" />
+                                <ContentPresenter VerticalAlignment="Center" TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Tint" Property="Opacity" Value="0.26" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="False">
+                            <Setter TargetName="Tint" Property="Opacity" Value="0" />
+                            <Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+                            <Setter TargetName="Dot" Property="Fill" Value="Transparent" />
+                            <Setter TargetName="Dot" Property="Stroke" Value="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}" />
+                            <Setter TargetName="Root" Property="Opacity" Value="0.55" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Compact text toggle (.*, Aa, ab). -->
+    <Style x:Key="OptionToggle" TargetType="ToggleButton">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Width" Value="30" />
+        <Setter Property="Height" Value="30" />
+        <Setter Property="Margin" Value="2,0" />
+        <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Bd" CornerRadius="6" Background="Transparent" BorderThickness="1" BorderBrush="Transparent">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SubtleFillColorTertiaryBrush}" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Log.Accent}" />
+                            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Toolbar toggle with an icon. -->
+    <Style x:Key="ToolToggle" TargetType="ToggleButton">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="MinWidth" Value="34" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="Margin" Value="1,0" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border x:Name="Bd" CornerRadius="6" Background="Transparent" Padding="{TemplateBinding Padding}">
+                        <Grid>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <Border x:Name="Bar" Height="3" Width="14" CornerRadius="1.5" VerticalAlignment="Bottom" Margin="0,0,0,1"
+                                    Background="{DynamicResource Log.Accent}" Visibility="Collapsed" />
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SubtleFillColorTertiaryBrush}" />
+                            <Setter TargetName="Bar" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Toolbar button with an icon. -->
+    <Style x:Key="ToolButton" TargetType="Button">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="MinWidth" Value="34" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="Margin" Value="1,0" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" CornerRadius="6" Background="Transparent" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SubtleFillColorTertiaryBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ToolSeparator" TargetType="Border">
+        <Setter Property="Width" Value="1" />
+        <Setter Property="Height" Value="20" />
+        <Setter Property="Margin" Value="8,0" />
+        <Setter Property="Background" Value="{DynamicResource DividerStrokeColorDefaultBrush}" />
+    </Style>
+
+    <Style x:Key="Card" TargetType="Border">
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style x:Key="Caption" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+    </Style>
+
+    <Style x:Key="SectionTitle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+    </Style>
+
+    <!--
+        Status dot driven by a StatusKind string: live / idle / paused / loading / missing / error.
+        Green (live) means the log was written in the last 30 seconds, the same rule as the device cards;
+        it pulses gently while lines are arriving, but never fades out of sight.
+    -->
+    <Style x:Key="StatusDot" TargetType="Ellipse">
+        <Setter Property="Width" Value="9" />
+        <Setter Property="Height" Value="9" />
+        <Setter Property="Fill" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding StatusKind}" Value="live">
+                <Setter Property="Fill" Value="{DynamicResource Log.Live}" />
+            </DataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding StatusKind}" Value="live" />
+                    <Condition Binding="{Binding IsReceiving}" Value="True" />
+                </MultiDataTrigger.Conditions>
+                <MultiDataTrigger.EnterActions>
+                    <BeginStoryboard x:Name="Pulse">
+                        <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                            <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.55" Duration="0:0:0.8" />
+                        </Storyboard>
+                    </BeginStoryboard>
+                </MultiDataTrigger.EnterActions>
+                <MultiDataTrigger.ExitActions>
+                    <StopStoryboard BeginStoryboardName="Pulse" />
+                </MultiDataTrigger.ExitActions>
+            </MultiDataTrigger>
+            <DataTrigger Binding="{Binding StatusKind}" Value="loading">
+                <Setter Property="Fill" Value="{DynamicResource Log.Info}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding StatusKind}" Value="paused">
+                <Setter Property="Fill" Value="{DynamicResource Log.Warning}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding StatusKind}" Value="missing">
+                <Setter Property="Fill" Value="{DynamicResource Log.Error}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding StatusKind}" Value="error">
+                <Setter Property="Fill" Value="{DynamicResource Log.Error}" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="Badge" TargetType="Border">
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="MinWidth" Value="18" />
+        <Setter Property="Height" Value="16" />
+        <Setter Property="Padding" Value="5,0" />
+        <Setter Property="Background" Value="{DynamicResource Log.Error}" />
+    </Style>
+
+</ResourceDictionary>

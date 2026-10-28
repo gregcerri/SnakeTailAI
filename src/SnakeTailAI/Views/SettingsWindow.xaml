@@ -1,0 +1,183 @@
+<ui:FluentWindow x:Class="SnakeTailAI.Views.SettingsWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 Title="Settings" Width="720" Height="760" MinHeight="420"
+                 ExtendsContentIntoTitleBar="True" WindowBackdropType="Mica" WindowCornerPreference="Round"
+                 WindowStartupLocation="CenterOwner" ShowInTaskbar="False" ResizeMode="CanResize">
+    <ui:FluentWindow.Resources>
+        <Style x:Key="SettingTitle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="Medium" />
+        </Style>
+        <Style x:Key="SettingHint" TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,2,0,0" />
+        </Style>
+        <Style TargetType="ui:CardControl" BasedOn="{StaticResource {x:Type ui:CardControl}}">
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+    </ui:FluentWindow.Resources>
+
+    <DockPanel>
+        <ui:TitleBar DockPanel.Dock="Top" Title="Settings" ShowMinimize="False" ShowMaximize="False" />
+
+        <Border DockPanel.Dock="Bottom" Padding="24,12" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource DividerStrokeColorDefaultBrush}">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <ui:Button Content="Save" Appearance="Primary" MinWidth="100" IsDefault="True" Click="OnSave" Margin="0,0,8,0" />
+                <ui:Button Content="Cancel" MinWidth="100" IsCancel="True" />
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,8,24,16">
+            <StackPanel>
+                <TextBlock Text="APPEARANCE" Style="{StaticResource SectionTitle}" Margin="2,8,0,8" />
+                <ui:CardControl Icon="{ui:SymbolIcon DarkTheme24}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Theme" Style="{StaticResource SettingTitle}" />
+                            <TextBlock Text="Dark, light, or follow the Windows setting" Style="{StaticResource SettingHint}" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <ComboBox x:Name="ThemeBox" MinWidth="160">
+                        <ComboBoxItem Content="Dark" />
+                        <ComboBoxItem Content="Light" />
+                        <ComboBoxItem Content="System" />
+                    </ComboBox>
+                </ui:CardControl>
+                <ui:CardControl Icon="{ui:SymbolIcon TextFont24}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Log font" Style="{StaticResource SettingTitle}" />
+                            <TextBlock Text="A monospaced font keeps columns aligned. Ctrl + mouse wheel zooms." Style="{StaticResource SettingHint}" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <ComboBox x:Name="FontBox" IsEditable="True" MinWidth="200">
+                            <ComboBoxItem Content="Cascadia Mono, Consolas" />
+                            <ComboBoxItem Content="Cascadia Code, Consolas" />
+                            <ComboBoxItem Content="Consolas" />
+                            <ComboBoxItem Content="JetBrains Mono, Consolas" />
+                            <ComboBoxItem Content="Fira Code, Consolas" />
+                            <ComboBoxItem Content="Lucida Console" />
+                            <ComboBoxItem Content="Courier New" />
+                        </ComboBox>
+                        <ui:NumberBox x:Name="FontSizeBox" Width="110" Margin="8,0,0,0" Minimum="8" Maximum="28" SmallChange="0.5" MaxDecimalPlaces="1" />
+                    </StackPanel>
+                </ui:CardControl>
+                <ui:CardControl Icon="{ui:SymbolIcon TextLineSpacing24}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Row spacing" Style="{StaticResource SettingTitle}" />
+                            <TextBlock Text="Compact shows more lines in the same height" Style="{StaticResource SettingHint}" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <ComboBox x:Name="SpacingBox" MinWidth="160">
+                        <ComboBoxItem Content="Compact" />
+                        <ComboBoxItem Content="Normal" />
+                        <ComboBoxItem Content="Comfortable" />
+                    </ComboBox>
+                </ui:CardControl>
+                <ui:CardControl Icon="{ui:SymbolIcon Sparkle24}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Highlight new lines" Style="{StaticResource SettingTitle}" />
+                            <TextBlock Text="Lines that just arrived glow briefly" Style="{StaticResource SettingHint}" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <ui:ToggleSwitch x:Name="FadeSwitch" />
+                </ui:CardControl>
+
+                <TextBlock Text="LOGS" Style="{StaticResource SectionTitle}" Margin="2,18,0,8" />
+                <ui:CardControl Icon="{ui:SymbolIcon FolderOpen24}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Devices folder" Style="{StaticResource SettingTitle}" />
+                            <TextBlock Text="Folder whose sub-folders hold the device logs (shown in the Devices panel)" Style="{StaticResource SettingHint}" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <ui:TextBox x:Name="RootBox" Width="250" />
+                        <ui:Button Content="Browse…" Margin="8,0,0,0" Click="OnBrowse" />
+                    </StackPanel>
+                </ui:CardControl>
+                <ui:CardControl Icon="{ui:SymbolIcon DocumentArrowDown20}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Initial load (MB)" Style="{StaticResource SettingTitle}" />
+                            <TextBlock Text="How much of the end of a file is read when it is opened. 0 reads the whole file." Style="{StaticResource SettingHint}" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <ui:NumberBox x:Name="InitialBox" Width="140" Minimum="0" Maximum="4096" SmallChange="5" MaxDecimalPlaces="0" />
+                </ui:CardControl>
+                <ui:CardControl Icon="{ui:SymbolIcon Stack24}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Maximum lines in memory" Style="{StaticResource SettingTitle}" />
+                            <TextBlock Text="When a tab holds more, the oldest lines are dropped from the screen (never from the file)." Style="{StaticResource SettingHint}" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <ui:NumberBox x:Name="MaxLinesBox" Width="160" Minimum="10000" Maximum="20000000" SmallChange="100000" MaxDecimalPlaces="0" />
+                </ui:CardControl>
+                <ui:CardControl Icon="{ui:SymbolIcon Timer24}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Check interval (ms)" Style="{StaticResource SettingTitle}" />
+                            <TextBlock Text="How often files are checked for new lines" Style="{StaticResource SettingHint}" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <ui:NumberBox x:Name="PollBox" Width="140" Minimum="50" Maximum="5000" SmallChange="50" MaxDecimalPlaces="0" />
+                </ui:CardControl>
+                <ui:CardControl Icon="{ui:SymbolIcon History24}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Reopen tabs at startup" Style="{StaticResource SettingTitle}" />
+                            <TextBlock Text="Restore the open logs and their filters" Style="{StaticResource SettingHint}" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <ui:ToggleSwitch x:Name="RestoreSwitch" />
+                </ui:CardControl>
+
+                <TextBlock Text="SSH TERMINAL" Style="{StaticResource SectionTitle}" Margin="2,18,0,8" />
+                <ui:CardControl Icon="{ui:SymbolIcon WindowConsole20}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="SSH buttons" Style="{StaticResource SettingTitle}" />
+                            <TextBlock Text="Open a terminal on the ViuPC whose log you are watching (Windows SSH client)" Style="{StaticResource SettingHint}" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <ui:ToggleSwitch x:Name="SshSwitch" />
+                </ui:CardControl>
+                <ui:CardControl Icon="{ui:SymbolIcon Person24}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="User and port" Style="{StaticResource SettingTitle}" />
+                            <TextBlock Text="Empty user: the SSH default" Style="{StaticResource SettingHint}" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <ui:TextBox x:Name="SshUserBox" Width="160" PlaceholderText="user" />
+                        <ui:NumberBox x:Name="SshPortBox" Width="110" Margin="8,0,0,0" Minimum="1" Maximum="65535" MaxDecimalPlaces="0" SmallChange="1" />
+                    </StackPanel>
+                </ui:CardControl>
+                <ui:CardControl Icon="{ui:SymbolIcon Key24}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Password" Style="{StaticResource SettingTitle}" />
+                            <TextBlock x:Name="SshPasswordStatus" Style="{StaticResource SettingHint}" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <PasswordBox x:Name="SshPasswordBox" Width="180" ToolTip="Type a new password to save it; leave empty to keep the current one" />
+                        <ui:Button x:Name="SshRemoveButton" Content="Remove" Margin="8,0,0,0" Click="OnRemoveSshPassword" />
+                    </StackPanel>
+                </ui:CardControl>
+
+                <TextBlock Style="{StaticResource Caption}" Margin="2,14,0,0" TextWrapping="Wrap">
+                    <Run Text="Settings are stored in" />
+                    <Run x:Name="SettingsPathRun" FontFamily="{StaticResource MonoFont}" />
+                </TextBlock>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</ui:FluentWindow>

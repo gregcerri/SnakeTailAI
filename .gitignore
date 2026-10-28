@@ -1,0 +1,15 @@
+# Build output
+bin/
+obj/
+publish/
+dist/
+*.pdb
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Python
+__pycache__/
