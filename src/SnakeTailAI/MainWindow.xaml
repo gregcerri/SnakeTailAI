@@ -269,7 +269,7 @@
                 <ToggleButton Style="{StaticResource ToolToggle}" IsChecked="{Binding AlwaysOnTop}" ToolTip="Always on top">
                     <ui:SymbolIcon Symbol="Pin24" />
                 </ToggleButton>
-                <Button Style="{StaticResource ToolButton}" Click="OnSettingsClick" ToolTip="Settings">
+                <Button Style="{StaticResource ToolButton}" Click="OnSettingsClick" ToolTip="Settings" AutomationProperties.Name="Settings">
                     <ui:SymbolIcon Symbol="Settings24" />
                 </Button>
             </StackPanel>

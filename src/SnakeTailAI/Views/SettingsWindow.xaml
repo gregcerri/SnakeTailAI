@@ -62,7 +62,7 @@
                             <ComboBoxItem Content="Lucida Console" />
                             <ComboBoxItem Content="Courier New" />
                         </ComboBox>
-                        <ui:NumberBox x:Name="FontSizeBox" Width="110" Margin="8,0,0,0" Minimum="8" Maximum="28" SmallChange="0.5" MaxDecimalPlaces="1" />
+                        <ui:NumberBox x:Name="FontSizeBox" Width="150" Margin="8,0,0,0" Minimum="8" Maximum="28" SmallChange="0.5" MaxDecimalPlaces="1" />
                     </StackPanel>
                 </ui:CardControl>
                 <ui:CardControl Icon="{ui:SymbolIcon TextLineSpacing24}">
@@ -157,7 +157,8 @@
                     </ui:CardControl.Header>
                     <StackPanel Orientation="Horizontal">
                         <ui:TextBox x:Name="SshUserBox" Width="160" PlaceholderText="user" />
-                        <ui:NumberBox x:Name="SshPortBox" Width="110" Margin="8,0,0,0" Minimum="1" Maximum="65535" MaxDecimalPlaces="0" SmallChange="1" />
+                        <ui:NumberBox x:Name="SshPortBox" Width="110" Margin="8,0,0,0" Minimum="1" Maximum="65535" MaxDecimalPlaces="0" SmallChange="1"
+                                      SpinButtonPlacementMode="Hidden" ClearButtonEnabled="False" ToolTip="SSH port" />
                     </StackPanel>
                 </ui:CardControl>
                 <ui:CardControl Icon="{ui:SymbolIcon Key24}">
