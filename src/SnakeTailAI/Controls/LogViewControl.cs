@@ -49,6 +49,10 @@ public sealed class LogViewControl : UserControl, ILogViewport
     private bool _updatingBars;
     private bool _minimapDrag;
     private bool _selectDrag;
+    private int _columnDrag = -1;
+    private double _columnDragX;
+    private int _columnDragWidth;
+    private bool _suppressLineMenu;
 
     private Typeface _typeface = new("Consolas");
     private Typeface _uiTypeface = new("Segoe UI");
@@ -84,6 +88,14 @@ public sealed class LogViewControl : UserControl, ILogViewport
         _surface.MouseMove += OnMouseMove;
         _surface.MouseLeftButtonUp += OnMouseLeftUp;
         _surface.MouseRightButtonDown += OnMouseRightDown;
+        ContextMenuOpening += (_, e) =>
+        {
+            if (_suppressLineMenu)
+            {
+                _suppressLineMenu = false;
+                e.Handled = true;
+            }
+        };
         _surface.SizeChanged += (_, _) => Refresh(keepFollowing: true);
 
         Loaded += (_, _) =>
@@ -206,6 +218,17 @@ public sealed class LogViewControl : UserControl, ILogViewport
     {
         get => (double)GetValue(LogFontSizeProperty);
         set => SetValue(LogFontSizeProperty, value);
+    }
+
+    public static readonly DependencyProperty ColumnWidthsProperty = DependencyProperty.Register(
+        nameof(ColumnWidths), typeof(string), typeof(LogViewControl),
+        new FrameworkPropertyMetadata("15,5,9,34", FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, (d, _) => ((LogViewControl)d).OnColumnWidthsChanged()));
+
+    /// <summary>Widths of the Time, Level, Thread and Source columns in characters, e.g. "15,5,9,34".</summary>
+    public string ColumnWidths
+    {
+        get => (string)GetValue(ColumnWidthsProperty);
+        set => SetValue(ColumnWidthsProperty, value);
     }
 
     public static readonly DependencyProperty LineSpacingProperty = DependencyProperty.Register(
@@ -351,8 +374,61 @@ public sealed class LogViewControl : UserControl, ILogViewport
     private int VisibleChars => Math.Max(1, (int)(TextWidth / _charWidth));
 
     // Column layout in characters (columns mode).
-    private const int ColTime = 15, ColLevel = 5, ColThread = 9, ColSource = 34, ColGap = 2;
-    private static int MessageColumn => ColTime + ColGap + ColLevel + ColGap + ColThread + ColGap + ColSource + ColGap;
+    // Columns mode: Time, Level, Thread, Source, then the message. Widths are in characters; Thread and Source can be 0 (hidden).
+    private const int ColTime = 0, ColLevel = 1, ColThread = 2, ColSource = 3, ColMessage = 4, ColGap = 2, MaxColumnWidth = 120;
+    private static readonly int[] DefaultColumns = [15, 5, 9, 34];
+    private static readonly int[] MinColumns = [5, 1, 0, 0];
+    private static readonly string[] ColumnNames = ["TIME", "LEVEL", "THREAD", "SOURCE", "MESSAGE"];
+    private int[] _columns = [.. DefaultColumns];
+
+    /// <summary>Start of a column, in characters from the text left edge (hidden columns take no space).</summary>
+    private int ColumnStart(int column)
+    {
+        int x = 0;
+        for (int i = 0; i < column; i++)
+        {
+            if (_columns[i] > 0)
+                x += _columns[i] + ColGap;
+        }
+        return x;
+    }
+
+    private int MessageColumn => ColumnStart(ColMessage);
+
+    /// <summary>X of the draggable edge after a column (middle of the gap).</summary>
+    private double ColumnEdge(int column) =>
+        TextLeft + (ColumnStart(column) + _columns[column]) * _charWidth + (_columns[column] > 0 ? ColGap * _charWidth / 2 : 0);
+
+    private bool InHeader(Point pos) => ColumnsMode && pos.Y < TopPadding + HeaderHeight;
+
+    /// <summary>The column whose right edge is under the pointer in the header, or -1.</summary>
+    private int ColumnEdgeAt(Point pos)
+    {
+        if (!InHeader(pos))
+            return -1;
+        for (int i = ColSource; i >= ColTime; i--)
+        {
+            if (Math.Abs(pos.X - ColumnEdge(i)) <= 5)
+                return i;
+        }
+        return -1;
+    }
+
+    private void OnColumnWidthsChanged()
+    {
+        var parts = (ColumnWidths ?? "").Split(',');
+        var columns = new int[DefaultColumns.Length];
+        for (int i = 0; i < columns.Length; i++)
+        {
+            columns[i] = i < parts.Length && int.TryParse(parts[i], out int w)
+                ? Math.Clamp(w, MinColumns[i], MaxColumnWidth)
+                : DefaultColumns[i];
+        }
+        _columns = columns;
+        Refresh(keepFollowing: true);
+    }
+
+    private void CommitColumnWidths() => ColumnWidths = string.Join(",", _columns);
 
     private int VisibleRowEstimate() => Math.Max(1, (int)(SurfaceHeight / _lineHeight));
 
@@ -599,6 +675,24 @@ public sealed class LogViewControl : UserControl, ILogViewport
     {
         _surface.Focus();
         var pos = e.GetPosition(_surface);
+        if (InHeader(pos))
+        {
+            int edge = ColumnEdgeAt(pos);
+            if (edge >= 0 && e.ClickCount == 2)
+            {
+                _columns[edge] = DefaultColumns[edge];
+                CommitColumnWidths();
+            }
+            else if (edge >= 0)
+            {
+                _columnDrag = edge;
+                _columnDragX = pos.X;
+                _columnDragWidth = _columns[edge];
+                _surface.CaptureMouse();
+            }
+            e.Handled = true;
+            return;
+        }
         if (InMinimap(pos.X))
         {
             _minimapDrag = true;
@@ -638,7 +732,20 @@ public sealed class LogViewControl : UserControl, ILogViewport
     private void OnMouseMove(object sender, MouseEventArgs e)
     {
         var pos = e.GetPosition(_surface);
-        _surface.Cursor = InMinimap(pos.X) || pos.X < BookmarkWidth + 4 ? Cursors.Hand : Cursors.Arrow;
+        if (_columnDrag >= 0)
+        {
+            int delta = (int)Math.Round((pos.X - _columnDragX) / _charWidth);
+            int width = Math.Clamp(_columnDragWidth + delta, MinColumns[_columnDrag], MaxColumnWidth);
+            if (width != _columns[_columnDrag])
+            {
+                _columns[_columnDrag] = width;
+                Refresh(keepFollowing: false);
+            }
+            return;
+        }
+        _surface.Cursor = ColumnEdgeAt(pos) >= 0 ? Cursors.SizeWE
+            : InMinimap(pos.X) || (pos.X < BookmarkWidth + 4 && !InHeader(pos)) ? Cursors.Hand
+            : Cursors.Arrow;
         if (_minimapDrag)
         {
             JumpFromMinimap(pos.Y);
@@ -657,6 +764,11 @@ public sealed class LogViewControl : UserControl, ILogViewport
 
     private void OnMouseLeftUp(object sender, MouseButtonEventArgs e)
     {
+        if (_columnDrag >= 0)
+        {
+            _columnDrag = -1;
+            CommitColumnWidths();
+        }
         _minimapDrag = false;
         _selectDrag = false;
         _surface.ReleaseMouseCapture();
@@ -665,6 +777,22 @@ public sealed class LogViewControl : UserControl, ILogViewport
     private void OnMouseRightDown(object sender, MouseButtonEventArgs e)
     {
         _surface.Focus();
+        if (InHeader(e.GetPosition(_surface)))
+        {
+            // The header has its own menu instead of the line menu.
+            _suppressLineMenu = true;
+            var reset = new MenuItem { Header = "Reset column widths" };
+            reset.Click += (_, _) =>
+            {
+                _columns = [.. DefaultColumns];
+                CommitColumnWidths();
+            };
+            var menu = new ContextMenu { PlacementTarget = _surface };
+            menu.Items.Add(reset);
+            menu.IsOpen = true;
+            e.Handled = true;
+            return;
+        }
         int index = RowAt(e.GetPosition(_surface).Y);
         if (index < 0 || _doc == null)
         {
@@ -945,31 +1073,36 @@ public sealed class LogViewControl : UserControl, ILogViewport
 
         if (line.Kind == LineKind.Normal && line.TimeLength > 0)
         {
-            string time = line.TimeLength >= 19 ? line.Raw.Substring(11, Math.Min(ColTime, line.TimeLength - 11)) : line.TimeText;
-            DrawCell(dc, time, ruleFg ?? p.TextDim, x, y, ColTime);
+            // A Time column wide enough for the whole timestamp shows the date too.
+            int timeWidth = _columns[ColTime];
+            string time = timeWidth >= line.TimeLength || line.TimeLength < 19
+                ? line.TimeText
+                : line.Raw.Substring(11, Math.Min(timeWidth, line.TimeLength - 11));
+            DrawCell(dc, time, ruleFg ?? p.TextDim, x, y, timeWidth);
 
-            double lx = x + (ColTime + ColGap) * cw;
+            double lx = x + ColumnStart(ColLevel) * cw;
             if (line.Level != LogLevel.None)
             {
                 var levelBrush = p.LevelBrush(line.Level);
                 var pillColor = ((SolidColorBrush)levelBrush).Color;
-                var pill = new Rect(lx - 3, y + 2, ColLevel * cw + 6, _lineHeight - 4);
+                var pill = new Rect(lx - 3, y + 2, _columns[ColLevel] * cw + 6, _lineHeight - 4);
                 dc.DrawRoundedRectangle(LogPalette.WithAlpha(pillColor, 0x2E), null, pill, 4, 4);
-                var lt = MakeText(line.Level.ShortName(), levelBrush, size: _fontSize * 0.86);
+                string name = line.Level.ShortName();
+                var lt = MakeText(name.Length <= _columns[ColLevel] ? name : name[..1], levelBrush, size: _fontSize * 0.86);
                 lt.SetFontWeight(FontWeights.SemiBold);
                 dc.DrawText(lt, new Point(pill.X + (pill.Width - lt.Width) / 2, pill.Y + (pill.Height - lt.Height) / 2));
             }
 
-            double tx = lx + (ColLevel + ColGap) * cw;
-            if (line.ThreadLength > 0)
-                DrawCell(dc, line.ThreadText, ruleFg ?? p.ThreadBrush(line.ThreadSpan), tx, y, ColThread);
+            double tx = x + ColumnStart(ColThread) * cw;
+            if (line.ThreadLength > 0 && _columns[ColThread] > 0)
+                DrawCell(dc, line.ThreadText, ruleFg ?? p.ThreadBrush(line.ThreadSpan), tx, y, _columns[ColThread]);
 
-            double sx = tx + (ColThread + ColGap) * cw;
-            if (line.SourceLength > 0 || line.FunctionLength > 0)
+            double sx = x + ColumnStart(ColSource) * cw;
+            if ((line.SourceLength > 0 || line.FunctionLength > 0) && _columns[ColSource] > 0)
             {
                 string src = line.SourceText + (line.SourceLineLength > 0 ? ":" + line.SourceLineText : "");
                 string fn = line.FunctionLength > 0 ? " › " + line.FunctionText : "";
-                string cell = Fit(src + fn, ColSource);
+                string cell = Fit(src + fn, _columns[ColSource]);
                 var ft = MakeText(cell, ruleFg ?? p.Source);
                 ft.LineHeight = _lineHeight;
                 int fnAt = Math.Min(cell.Length, src.Length);
@@ -1018,7 +1151,8 @@ public sealed class LogViewControl : UserControl, ILogViewport
         dc.DrawText(ft, new Point(x, y));
     }
 
-    private static string Fit(string text, int width) => text.Length <= width ? text : text[..(width - 1)] + "…";
+    private static string Fit(string text, int width) =>
+        width <= 0 ? "" : text.Length <= width ? text : width == 1 ? "…" : text[..(width - 1)] + "…";
 
     /// <summary>
     /// Applies highlight-rule spans and draws find-match backgrounds. Spans are positions in <paramref name="raw"/>;
@@ -1097,11 +1231,24 @@ public sealed class LogViewControl : UserControl, ILogViewport
         Label("#", BookmarkWidth);
         if (OriginWidth > 0)
             Label("DEVICE", OriginLeft);
-        Label("TIME", x);
-        Label("LEVEL", x + (ColTime + ColGap) * cw);
-        Label("THREAD", x + (ColTime + ColGap + ColLevel + ColGap) * cw);
-        Label("SOURCE", x + (ColTime + ColGap + ColLevel + ColGap + ColThread + ColGap) * cw);
-        Label("MESSAGE", x + MessageColumn * cw);
+        for (int i = ColTime; i <= ColMessage; i++)
+        {
+            if (i < ColMessage && _columns[i] == 0)
+                continue;
+            int room = i < ColMessage ? _columns[i] : 7;
+            string name = ColumnNames[i];
+            if (name.Length > room + 1)
+                name = room >= 2 ? name[..room] : "";
+            Label(name, x + ColumnStart(i) * cw);
+        }
+        // Edges that can be dragged to resize a column.
+        double top = TopPadding + 4, bottom = TopPadding + h - 4;
+        for (int i = ColTime; i <= ColSource; i++)
+        {
+            double edge = Math.Round(ColumnEdge(i)) + 0.5;
+            var pen = i == _columnDrag ? new Pen(LogPalette.WithAlpha(ThemeService.Accent, 0xFF), 2) : p.Divider;
+            dc.DrawLine(pen, new Point(edge, top), new Point(edge, bottom));
+        }
     }
 
     private void RenderEmpty(DrawingContext dc, LogPalette p, double width, double height)

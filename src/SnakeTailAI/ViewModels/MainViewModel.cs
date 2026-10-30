@@ -21,6 +21,7 @@ public sealed partial class MainViewModel : ObservableObject
         _logFontFamily = settings.FontFamily;
         _fadeIn = settings.FadeInNewLines;
         _lineSpacing = settings.RowSpacing;
+        _columnWidths = settings.ColumnWidths;
         _showFilterBar = settings.ShowFilterBar;
         _sshEnabled = settings.SshEnabled;
         Browser = new BrowserViewModel(settings.LogRoot, (path, series) => Open(path, series))
@@ -75,6 +76,11 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _fadeIn;
     [ObservableProperty] private bool _alertsMuted;
     [ObservableProperty] private double _lineSpacing;
+
+    /// <summary>Column widths of the columns view, shared by all tabs.</summary>
+    [ObservableProperty] private string _columnWidths;
+
+    partial void OnColumnWidthsChanged(string value) => Settings.ColumnWidths = value;
     [ObservableProperty] private bool _sshEnabled;
 
     /// <summary>

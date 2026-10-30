@@ -63,6 +63,9 @@ public sealed class AppSettings
     /// <summary>Height of the terminal panel at the bottom of the window.</summary>
     public double TerminalHeight { get; set; } = 280;
     public bool ColumnsMode { get; set; }
+
+    /// <summary>Widths (characters) of the Time, Level, Thread and Source columns.</summary>
+    public string ColumnWidths { get; set; } = "15,5,9,34";
     public bool WordWrap { get; set; }
     public bool ShowBrowser { get; set; } = true;
     public double BrowserWidth { get; set; } = 290;

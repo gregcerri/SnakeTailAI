@@ -26,6 +26,9 @@ so the logger can keep writing and rotating them while you read.
 - **Find (Ctrl+F)**: matches are highlighted in the text and on the overview strip. F3 / Shift+F3 jump between them.
 - **Bookmarks**: Ctrl+F2 adds one, F2 / Shift+F2 jump. You can also click in the left margin.
 - **Raw view** colours each field: time, level, thread (one colour per thread), source, function. **Columns view (Ctrl+T)** shows the same fields in aligned columns.
+  - Drag the edge between two column headers to resize; double-click an edge to reset that column; right-click the header to reset all.
+  - Thread and Source can be narrowed to nothing to hide them. A Time column wide enough also shows the date.
+  - Widths are saved and shared by all tabs.
 - **Highlight rules** (palette button): text or regex, colouring the whole line or only the matched text.
 - **Overview strip** next to the scrollbar shows errors, warnings, find matches, bookmarks and the visible area. Click it to jump.
 - **Timeline**: the toolbar or Devices-panel button merges the logs of several devices into one tab, in time order.
