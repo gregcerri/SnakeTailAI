@@ -290,8 +290,7 @@ public sealed partial class LogTabViewModel : ObservableObject, IDisposable
             };
             tailer.LoadProgress += progress => Volatile.Write(ref source.Progress, progress);
             tailer.StateChanged += (state, message) => Application.Current?.Dispatcher.BeginInvoke(() => OnTailState(source, state, message));
-            string name = source.Origin ?? System.IO.Path.GetFileName(path);
-            tailer.Rotated += () => Application.Current?.Dispatcher.BeginInvoke(() => Notify?.Invoke(this, $"{name} rotated — following the new file"));
+            // A rotation is shown only by the separator line in the log (and the count in the status bar), without a toast.
             source.Watcher = StartWatcher(path, tailer);
             _sources.Add(source);
             tailer.Start();
