@@ -450,6 +450,8 @@
                     <Run Text="Shown" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                     <Run Text="{Binding ShownLines, Mode=OneWay, StringFormat=N0}" />
                 </TextBlock>
+                <TextBlock Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="14,0,0,0" Text="{Binding PositionText}"
+                           Visibility="{Binding PositionText, Converter={StaticResource NullToVis}}" ToolTip="Rows on screen and how far down the view is" />
                 <TextBlock Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="14,0,0,0">
                     <Run Text="Size" Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
                     <Run Text="{Binding FileSize, Mode=OneWay, Converter={StaticResource SizeText}}" />

@@ -285,6 +285,7 @@
                                          FadeIn="{Binding DataContext.FadeIn, RelativeSource={RelativeSource AncestorType=Window}}"
                                          LineSpacing="{Binding DataContext.LineSpacing, RelativeSource={RelativeSource AncestorType=Window}}"
                                          ColumnWidths="{Binding DataContext.ColumnWidths, RelativeSource={RelativeSource AncestorType=Window}}"
+                                         PositionText="{Binding PositionText, Mode=OneWayToSource}"
                                          SelectedLine="{Binding SelectedLine}"
                                          ContextLine="{Binding ContextLine}"
                                          EmptyText="{Binding EmptyText}">

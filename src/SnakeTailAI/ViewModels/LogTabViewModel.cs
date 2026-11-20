@@ -155,6 +155,9 @@ public sealed partial class LogTabViewModel : ObservableObject, IDisposable
     [ObservableProperty] private int _rateVersion;
     [ObservableProperty] private int _marksVersion;
 
+    /// <summary>Which rows are on screen, reported by the log view (e.g. "Rows 12,345–12,390 of 1,234,567 · 37%").</summary>
+    [ObservableProperty] private string _positionText = "";
+
     [ObservableProperty] private bool _isFollowing = true;
     [ObservableProperty] private bool _isPaused;
     [ObservableProperty] private int _pendingWhilePaused;

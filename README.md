@@ -30,7 +30,11 @@ so the logger can keep writing and rotating them while you read.
   - Thread and Source can be narrowed to nothing to hide them. A Time column wide enough also shows the date.
   - Widths are saved and shared by all tabs.
 - **Highlight rules** (palette button): text or regex, colouring the whole line or only the matched text.
-- **Overview strip** next to the scrollbar shows errors, warnings, find matches, bookmarks and the visible area. Click it to jump.
+- **Scrollbar with overview**: the strip on the right is the scrollbar.
+  - It shows errors, warnings, find matches and bookmarks along the whole log.
+  - Its large thumb marks where you are. Drag the thumb, or click elsewhere on the strip to jump there.
+  - Hovering or dragging shows the line number and time at that point.
+  - The status bar shows the rows on screen and how far down you are (e.g. "Rows 12,345–12,390 of 1,234,567 · 37%").
 - **Timeline**: the toolbar or Devices-panel button merges the logs of several devices into one tab, in time order.
   - Each line shows its device in a coloured column.
   - Filter devices with the Device box (`31; -29` hides 29), or right-click a line → only / hide this device.

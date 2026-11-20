@@ -11,7 +11,7 @@
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <AssemblyName>SnakeTailAI</AssemblyName>
     <Product>SnakeTail AI</Product>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
     <Description>Live log viewer with filters, highlights and rotation support</Description>
   </PropertyGroup>
 

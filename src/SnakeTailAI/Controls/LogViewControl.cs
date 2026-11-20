@@ -28,13 +28,14 @@ public interface ILogViewport
 public sealed class LogViewControl : UserControl, ILogViewport
 {
     private const double BookmarkWidth = 16;
-    private const double MinimapWidth = 12;
+    /// <summary>Width of the strip on the right: scrollbar and overview of errors, warnings, matches and bookmarks.</summary>
+    private const double MinimapWidth = 18;
+    private const double MinThumbHeight = 30;
     private const double TopPadding = 4;
     private const int FadeMs = 900;
     private const int MaxWrapChars = 10_000;
 
     private readonly Surface _surface;
-    private readonly ScrollBar _vbar;
     private readonly ScrollBar _hbar;
     private readonly DispatcherTimer _animTimer;
     private readonly List<(int Index, double Y, double Height)> _rows = [];
@@ -48,6 +49,8 @@ public sealed class LogViewControl : UserControl, ILogViewport
     private long _caretNumber = -1;
     private bool _updatingBars;
     private bool _minimapDrag;
+    private double _thumbGrab;
+    private double _stripHoverY = double.NaN;
     private bool _selectDrag;
     private int _columnDrag = -1;
     private double _columnDragX;
@@ -64,19 +67,14 @@ public sealed class LogViewControl : UserControl, ILogViewport
     public LogViewControl()
     {
         _surface = new Surface(this) { Focusable = true, FocusVisualStyle = null, ClipToBounds = true };
-        _vbar = new ScrollBar { Orientation = Orientation.Vertical, SmallChange = 1, Minimum = 0 };
+        // The vertical scrollbar is drawn by the surface itself (the strip on the right), with a large thumb.
         _hbar = new ScrollBar { Orientation = Orientation.Horizontal, SmallChange = 4, Minimum = 0, Visibility = Visibility.Collapsed };
-        _vbar.ValueChanged += OnVerticalBarChanged;
         _hbar.ValueChanged += OnHorizontalBarChanged;
 
         var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         grid.Children.Add(_surface);
-        Grid.SetColumn(_vbar, 1);
-        grid.Children.Add(_vbar);
         Grid.SetRow(_hbar, 1);
         grid.Children.Add(_hbar);
         Content = grid;
@@ -88,6 +86,14 @@ public sealed class LogViewControl : UserControl, ILogViewport
         _surface.MouseMove += OnMouseMove;
         _surface.MouseLeftButtonUp += OnMouseLeftUp;
         _surface.MouseRightButtonDown += OnMouseRightDown;
+        _surface.MouseLeave += (_, _) =>
+        {
+            if (!double.IsNaN(_stripHoverY))
+            {
+                _stripHoverY = double.NaN;
+                _surface.InvalidateVisual();
+            }
+        };
         ContextMenuOpening += (_, e) =>
         {
             if (_suppressLineMenu)
@@ -218,6 +224,16 @@ public sealed class LogViewControl : UserControl, ILogViewport
     {
         get => (double)GetValue(LogFontSizeProperty);
         set => SetValue(LogFontSizeProperty, value);
+    }
+
+    public static readonly DependencyProperty PositionTextProperty = DependencyProperty.Register(
+        nameof(PositionText), typeof(string), typeof(LogViewControl), new FrameworkPropertyMetadata(""));
+
+    /// <summary>Where the view is, e.g. "Rows 12,345–12,390 of 1,234,567 · 37%". Read it with a OneWayToSource binding.</summary>
+    public string PositionText
+    {
+        get => (string)GetValue(PositionTextProperty);
+        set => SetValue(PositionTextProperty, value);
     }
 
     public static readonly DependencyProperty ColumnWidthsProperty = DependencyProperty.Register(
@@ -499,11 +515,17 @@ public sealed class LogViewControl : UserControl, ILogViewport
         _top = Math.Clamp(_top, 0, maxTop);
         _topNumber = _count > 0 ? _doc.View[_top].Number : 0;
 
+        if (_count == 0)
+        {
+            PositionText = "";
+        }
+        else
+        {
+            int last = Math.Min(_count, _top + VisibleRowEstimate());
+            PositionText = $"Rows {_top + 1:N0}–{last:N0} of {_count:N0} · {(long)last * 100 / _count}%";
+        }
+
         _updatingBars = true;
-        _vbar.Maximum = maxTop;
-        _vbar.ViewportSize = VisibleRowEstimate();
-        _vbar.LargeChange = Math.Max(1, VisibleRowEstimate() - 1);
-        _vbar.Value = _top;
 
         int maxChars = ColumnsMode ? Math.Max(0, _doc.MaxLineLength - 40) : _doc.MaxLineLength;
         int visible = ColumnsMode ? Math.Max(1, VisibleChars - MessageColumn) : VisibleChars;
@@ -530,12 +552,6 @@ public sealed class LogViewControl : UserControl, ILogViewport
                 IsFollowing = atEnd;
         }
         Refresh(keepFollowing: false);
-    }
-
-    private void OnVerticalBarChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        if (!_updatingBars)
-            SetTop((int)Math.Round(e.NewValue), userAction: true);
     }
 
     private void OnHorizontalBarChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -662,13 +678,38 @@ public sealed class LogViewControl : UserControl, ILogViewport
 
     private bool InMinimap(double x) => x >= _surface.ActualWidth - MinimapWidth - 2;
 
-    private void JumpFromMinimap(double y)
+    private int RowsOnScreen => Math.Max(1, _rows.Count > 0 ? _rows.Count : VisibleRowEstimate());
+
+    /// <summary>
+    /// The thumb of the strip: its centre sits where the visible rows are (the same scale as the marks), and it is
+    /// never shorter than <see cref="MinThumbHeight"/>, so it stays easy to see and grab even with millions of lines.
+    /// </summary>
+    private (double Top, double Height) Thumb()
+    {
+        double track = Math.Max(1, _surface.ActualHeight - 4);
+        int count = Math.Max(1, _count);
+        double height = Math.Clamp(track * RowsOnScreen / count, Math.Min(MinThumbHeight, track), track);
+        double center = track * (_top + RowsOnScreen / 2.0) / count;
+        return (2 + Math.Clamp(center - height / 2, 0, track - height), height);
+    }
+
+    /// <summary>Scrolls so that the thumb's top edge is at <paramref name="thumbTop"/>.</summary>
+    private void MoveThumbTo(double thumbTop)
     {
         if (_count == 0)
             return;
-        double fraction = Math.Clamp(y / Math.Max(1, _surface.ActualHeight), 0, 1);
-        int target = (int)(fraction * _count);
-        SetTop(target - VisibleRowEstimate() / 2, userAction: true);
+        double track = Math.Max(1, _surface.ActualHeight - 4);
+        var (_, height) = Thumb();
+        double center = thumbTop - 2 + height / 2;
+        int top = (int)Math.Round(center / track * _count - RowsOnScreen / 2.0);
+        SetTop(top, userAction: true);
+    }
+
+    /// <summary>The view index at a height of the strip.</summary>
+    private int IndexAtStrip(double y)
+    {
+        double track = Math.Max(1, _surface.ActualHeight - 4);
+        return Math.Clamp((int)((y - 2) / track * _count), 0, Math.Max(0, _count - 1));
     }
 
     private void OnMouseLeftDown(object sender, MouseButtonEventArgs e)
@@ -695,9 +736,20 @@ public sealed class LogViewControl : UserControl, ILogViewport
         }
         if (InMinimap(pos.X))
         {
+            // Grab the thumb where it was clicked, or bring it under the pointer when clicking elsewhere on the strip.
+            var (thumbTop, thumbHeight) = Thumb();
+            if (pos.Y >= thumbTop && pos.Y <= thumbTop + thumbHeight)
+            {
+                _thumbGrab = pos.Y - thumbTop;
+            }
+            else
+            {
+                _thumbGrab = thumbHeight / 2;
+                MoveThumbTo(pos.Y - _thumbGrab);
+            }
             _minimapDrag = true;
             _surface.CaptureMouse();
-            JumpFromMinimap(pos.Y);
+            _surface.InvalidateVisual();
             e.Handled = true;
             return;
         }
@@ -748,8 +800,14 @@ public sealed class LogViewControl : UserControl, ILogViewport
             : Cursors.Arrow;
         if (_minimapDrag)
         {
-            JumpFromMinimap(pos.Y);
+            MoveThumbTo(pos.Y - _thumbGrab);
             return;
+        }
+        bool overStrip = InMinimap(pos.X) && _count > 0;
+        if (overStrip || !double.IsNaN(_stripHoverY))
+        {
+            _stripHoverY = overStrip ? pos.Y : double.NaN;
+            _surface.InvalidateVisual();
         }
         if (!_selectDrag || _count == 0)
             return;
@@ -769,6 +827,8 @@ public sealed class LogViewControl : UserControl, ILogViewport
             _columnDrag = -1;
             CommitColumnWidths();
         }
+        if (_minimapDrag)
+            _surface.InvalidateVisual();
         _minimapDrag = false;
         _selectDrag = false;
         _surface.ReleaseMouseCapture();
@@ -1266,20 +1326,56 @@ public sealed class LogViewControl : UserControl, ILogViewport
     private void RenderMinimap(DrawingContext dc, LogPalette p, double width, double height, Color accent)
     {
         double x = width - MinimapWidth;
-        dc.DrawRoundedRectangle(p.Minimap, null, new Rect(x, 2, MinimapWidth - 2, height - 4), 4, 4);
+        var track = new Rect(x, 2, MinimapWidth - 2, height - 4);
+        dc.DrawRoundedRectangle(p.Minimap, p.Divider, track, 5, 5);
         if (_count == 0)
             return;
 
-        DrawMarks(dc, _doc!.WarningMarks, p.Warning, x + 2, height);
-        DrawMarks(dc, _doc.ErrorMarks, p.Error, x + 2, height);
+        DrawMarks(dc, _doc!.WarningMarks, p.Warning, x + 3, height);
+        DrawMarks(dc, _doc.ErrorMarks, p.Error, x + 3, height);
         if (FindMarks is { Count: > 0 } find)
-            DrawMarks(dc, find, LogPalette.WithAlpha(Color.FromRgb(0xF5, 0xC5, 0x18), 0xFF), x + 2, height);
-        DrawMarks(dc, _doc.BookmarkMarks, p.Bookmark, x + 2, height);
+            DrawMarks(dc, find, LogPalette.WithAlpha(Color.FromRgb(0xF5, 0xC5, 0x18), 0xFF), x + 3, height);
+        DrawMarks(dc, _doc.BookmarkMarks, p.Bookmark, x + 3, height);
 
-        int rows = Math.Max(1, _rows.Count);
-        double y1 = 2 + (height - 4) * _top / _count;
-        double y2 = 2 + (height - 4) * Math.Min(_count, _top + rows) / _count;
-        dc.DrawRoundedRectangle(p.MinimapViewport, new Pen(LogPalette.WithAlpha(accent, 0x90), 1), new Rect(x + 0.5, y1, MinimapWidth - 3, Math.Max(6, y2 - y1)), 3, 3);
+        // Thumb: nearly solid, with a ring in the background colour so it stands out even over a strip full of marks;
+        // brighter when hovered or dragged.
+        var (thumbTop, thumbHeight) = Thumb();
+        bool hot = _minimapDrag || (!double.IsNaN(_stripHoverY) && _stripHoverY >= thumbTop && _stripHoverY <= thumbTop + thumbHeight);
+        byte fill = _minimapDrag ? (byte)0xF0 : hot ? (byte)0xD8 : (byte)0xB8;
+        var thumb = new Rect(x + 1, thumbTop, MinimapWidth - 4, thumbHeight);
+        dc.DrawRoundedRectangle(null, new Pen(p.Background, 3), thumb, 5, 5);
+        dc.DrawRoundedRectangle(LogPalette.WithAlpha(accent, fill), new Pen(LogPalette.WithAlpha(accent, 0xFF), 1.5), thumb, 5, 5);
+
+        // Grip lines in the middle of the thumb.
+        if (thumbHeight >= 24)
+        {
+            var grip = new Pen(LogPalette.WithAlpha(Colors.White, 0xB0), 1.2);
+            double cy = thumbTop + thumbHeight / 2;
+            for (int i = -1; i <= 1; i++)
+                dc.DrawLine(grip, new Point(thumb.Left + 4, Math.Round(cy + i * 3) + 0.5), new Point(thumb.Right - 4, Math.Round(cy + i * 3) + 0.5));
+        }
+
+        // Where am I: line and time, at the pointer while hovering, at the top of the view while dragging.
+        if (_minimapDrag || !double.IsNaN(_stripHoverY))
+        {
+            int index = _minimapDrag ? Math.Min(_top, _count - 1) : IndexAtStrip(_stripHoverY);
+            double anchor = _minimapDrag ? thumbTop + thumbHeight / 2 : _stripHoverY;
+            RenderPositionLabel(dc, p, accent, _doc.View[index], x - 8, anchor, height);
+        }
+    }
+
+    private void RenderPositionLabel(DrawingContext dc, LogPalette p, Color accent, LogLine line, double right, double anchorY, double height)
+    {
+        string text = line.Timestamp is { } time
+            ? $"Line {line.Number:N0} · {time:HH:mm:ss}"
+            : $"Line {line.Number:N0}";
+        var ft = MakeText(text, p.Text, _uiTypeface, 12);
+        ft.SetFontWeight(FontWeights.SemiBold);
+        double w = ft.Width + 18, h = ft.Height + 8;
+        double y = Math.Clamp(anchorY - h / 2, 2, Math.Max(2, height - h - 2));
+        var box = new Rect(right - w, y, w, h);
+        dc.DrawRoundedRectangle(p.SeparatorFill, new Pen(LogPalette.WithAlpha(accent, 0xC0), 1), box, 6, 6);
+        dc.DrawText(ft, new Point(box.X + 9, box.Y + 4));
     }
 
     /// <summary>One tick per 2px band that contains at least one mark (binary search per band, so huge lists stay cheap).</summary>
@@ -1295,7 +1391,7 @@ public sealed class LogViewControl : UserControl, ILogViewport
             int hi = Math.Max(lo + 1, (int)((y + band) / usable * _count));
             int k = LowerBound(marks, lo);
             if (k < marks.Count && marks[k] < hi && marks[k] < _count)
-                dc.DrawRectangle(brush, null, new Rect(x, 2 + y, MinimapWidth - 6, band));
+                dc.DrawRectangle(brush, null, new Rect(x, 2 + y, MinimapWidth - 8, band));
         }
     }
 
